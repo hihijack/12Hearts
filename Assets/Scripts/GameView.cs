@@ -16,11 +16,12 @@ public class GameView : MonoBehaviour {
     void Awake()
     {
         player = GameObject.FindGameObjectWithTag("Player").GetComponent<Player>();
+       
     }
 
 	// Use this for initialization
 	void Start () {
-
+        player._State = EState.Normal;
         comCPU = gameObject.AddComponent<CommonCPU>();
         comCPU.InitUI();
         InitCurHeartList();
@@ -55,7 +56,35 @@ public class GameView : MonoBehaviour {
 	void Update ()
     {
 #if UNITY_EDITOR||UNITY_STANDALONE_WIN
+        if (Input.GetKeyDown(KeyCode.Z))
+        {
+            //if (player._PowState == EPowState.Normal)
+            //{
+            //    player._PowState = EPowState.TimeSlow;
+            //}
+            //else if (player._PowState == EPowState.TimeSlow)
+            //{
+            //    player._PowState = EPowState.Normal;
+            //}
+        }
 #endif
+    }
+
+    public void SetTimeSlowEffShow(bool isShow) 
+    {
+        GameObject gobjTimeSlowEff = Tools.GetGameObjectInChildByPathSimple(cameraControll.gameObject, "eff_timeslow");
+        if (gobjTimeSlowEff != null)
+        {
+            gobjTimeSlowEff.SetActive(isShow);
+        }
+        else
+        {
+            if (isShow)
+            {
+                gobjTimeSlowEff = Tools.LoadResourcesGameObject("Prefabs/eff_timeslow", cameraControll.gameObject, 0f, 0f, 10f);
+                gobjTimeSlowEff.name = "eff_timeslow";
+            }
+        }
     }
 
     void ShowUIMain()
@@ -75,6 +104,10 @@ public class GameView : MonoBehaviour {
             UIGrid uiGrid = gobjHeartsGrid.GetComponent<UIGrid>();
             uiGrid.Reposition();
         }
+        // 关卡名字
+        LevelData ld = GameResources.GetLevelData(GameManager.curLevelId);
+        UILabel txtname = Tools.GetComponentInChildByPath<UILabel>(comCPU._UIMain, "name");
+        txtname.text = ld.name;
     }
 
     public void GetAHeart(int heartid)
@@ -124,6 +157,23 @@ public class GameView : MonoBehaviour {
     /// </summary>
     public void OnCompleteLevel()
     {
+
+        SaveRecord();
+
+        GameManager.curLevelId++;
+
+        if (GameManager.curLevelId <= GameManager.maxLevelCount)
+        {
+            Application.LoadLevel("open");
+        }
+        else
+        {
+            Application.LoadLevel("gameover");
+        }
+    }
+
+    public void SaveRecord() 
+    {
         if (GameManager.dicPlayerLevelDatas.ContainsKey(GameManager.curLevelId))
         {
             PlayerLevelData pld = GameManager.dicPlayerLevelDatas[GameManager.curLevelId];
@@ -135,17 +185,6 @@ public class GameView : MonoBehaviour {
             GameManager.dicPlayerLevelDatas.Add(pld.levelId, pld);
         }
         comCPU.SavePlayerLevelData();
-
-        GameManager.curLevelId++;
-
-        if (GameManager.curLevelId <= GameManager.maxLevelCount)
-        {
-            Application.LoadLevel("level_" + GameManager.curLevelId);
-        }
-        else
-        {
-            Application.LoadLevel("gameover");
-        }
     }
 
 

@@ -11,7 +11,14 @@ public enum EState
 {
     Normal = 1,
     ReadyToGo = 2,
-    Dead = 3
+    Dead = 3,
+    Idle = 4
+}
+
+public enum EPowState
+{
+    Normal = 1,
+    TimeSlow = 2
 }
 
 public class Player : MonoBehaviour {
@@ -35,6 +42,17 @@ public class Player : MonoBehaviour {
     }
 
     GameObject gobjCurBubble;
+
+    Cube gCurInCube; // 当前处于某个Cube中
+
+    public Cube _CurInCube
+    {
+        get { return gCurInCube; }
+        set 
+        {
+            gCurInCube = value;
+        }
+    }
 
     SpriteRenderer spriteRender;
 
@@ -78,7 +96,7 @@ public class Player : MonoBehaviour {
     {
         get { return state; }
         set 
-        { 
+        {
             state = value;
             if (value == EState.ReadyToGo)
             {
@@ -102,26 +120,57 @@ public class Player : MonoBehaviour {
                     animator.Play("run_black");
                 }
             }
+            else if (value == EState.Idle)
+            {
+                rig.velocity = new Vector2(0f, 0f);
+                if (CurColor == EColor.W)
+                {
+                    animator.Play("blink_white");
+                }
+                else if (CurColor == EColor.B)
+                {
+                    animator.Play("blink");
+                }
+            }
         }
     }
 
-    void Start () {
+    EPowState powState = EPowState.Normal;
 
+    public EPowState _PowState
+    {
+        get { return powState; }
+        set 
+        { 
+            powState = value;
+            if (powState == EPowState.Normal)
+            {
+                Time.timeScale = 1f;
+                gameView.SetTimeSlowEffShow(false);
+            }
+            else if (powState == EPowState.TimeSlow)
+            {
+                Time.timeScale = 0.5f;
+                gameView.SetTimeSlowEffShow(true);
+            }
+        }
+    }
 
-
+    void Awake() 
+    {
         rig = GetComponent<Rigidbody2D>();
         gh = GetComponent<GravityHander>();
         spriteRender = GetComponent<SpriteRenderer>();
+        animator = gameObject.GetComponent<Animator>();
+        CurColor = EColor.W;
+    }
+
+    void Start () {
       
         gameView = GameObject.FindGameObjectWithTag("CPU").GetComponent<GameView>();
-        animator = gameObject.GetComponent<Animator>();
-
-        CurColor = EColor.W;
 
         gobjStartPos = GameObject.FindGameObjectWithTag("startpos");
         transform.position = gobjStartPos.transform.position;
-
-        _State = EState.Normal;
     }
 	
 	// Update is called once per frame
@@ -152,6 +201,11 @@ public class Player : MonoBehaviour {
             gobjCurBubble.SetActive(false);
             _InBubble = false;
         }
+
+        if (_CurInCube != null)
+        {
+            //HanderACube(_CurInCube);
+        }
     }
 
 	void Update () {
@@ -159,7 +213,7 @@ public class Player : MonoBehaviour {
         if (_State == EState.Normal)
         {
             rig.velocity = new Vector2(speedX, rig.velocity.y);
-            if (Input.GetMouseButtonDown(0))
+            if (Input.GetMouseButtonDown(0) || Input.GetKeyDown(KeyCode.X))
             {
                 Change();
             }
@@ -167,7 +221,7 @@ public class Player : MonoBehaviour {
         else if (_State == EState.ReadyToGo)
         {
             rig.velocity = new Vector2(0f, rig.velocity.y);
-            if (Input.GetMouseButtonDown(0))
+            if (Input.GetMouseButtonDown(0) || Input.GetKeyDown(KeyCode.X))
             {
                 ContinueGo();
             }
@@ -176,11 +230,22 @@ public class Player : MonoBehaviour {
         {
             rig.velocity = new Vector2(0f, 0f);
         }
+        else if (_State == EState.Idle)
+        {
+            if (Input.GetMouseButtonDown(0) || Input.GetKeyDown(KeyCode.X))
+            {
+                Change();
+            }
+        }
         
 	}
 
     void ContinueGo()
     {
+        if (speedX < 0)
+        {
+            ChangeDirAtOnce();
+        }
         _State = EState.Normal;
         if (gobjCheckPoint != null)
         {
@@ -197,7 +262,7 @@ public class Player : MonoBehaviour {
     void FixedUpdate()
     {
         Vector2 rayOri = new Vector2(transform.position.x, -50f);
-        RaycastHit2D rh = Physics2D.Raycast(rayOri, Vector2.up, 100f, 1 << LayerMask.NameToLayer("ground"));
+        RaycastHit2D rh = Physics2D.Raycast(rayOri, Vector2.up, 1000f, 1 << LayerMask.NameToLayer("ground"));
         if (rh)
         {
             if (rh.point.y > transform.position.y)
@@ -210,7 +275,7 @@ public class Player : MonoBehaviour {
             }
         }
     }
-
+    
     void OnTriggerStay2D(Collider2D other) 
     {
         if (other.CompareTag("wind"))
@@ -218,6 +283,7 @@ public class Player : MonoBehaviour {
             Cube cube = other.GetComponent<Cube>();
             if (cube != null)
             {
+                _CurInCube = cube;
                 Vector2 force = Vector2.zero;
                 float forceVal = 80f - Mathf.Abs(transform.position.y - other.transform.position.y) * 0.3f;
                 if (forceVal < 0)
@@ -256,33 +322,45 @@ public class Player : MonoBehaviour {
         }
        
     }
+
+    /// <summary>
+    /// 对一个方块起反应
+    /// </summary>
+    void HanderACube(Cube cube) 
+    {
+        if (cube == null)
+        {
+            return;
+        }
+
+        Vector2 force = Vector2.zero;
+        if ((cube.cubeColor == EColor.B && curColor == EColor.W) || (cube.cubeColor == EColor.W && curColor == EColor.B))
+        {
+            // 异色
+            force = new Vector2(0f, cube.transform.position.y - transform.position.y);
+        }
+        else
+        {
+            // 同色
+            force = new Vector2(0f, transform.position.y - cube.transform.position.y);
+        }
+
+        force.Normalize();
+
+        force *= 800;
+
+        rig.velocity = new Vector2(rig.velocity.x, 0f);
+
+        rig.AddForce(force);
+    }
+
     void OnTriggerEnter2D(Collider2D other) 
     {
         if (other.CompareTag("forceplatform"))
         {
             Cube cube = other.GetComponent<Cube>();
-            if (cube != null)
-            {
-                Vector2 force = Vector2.zero;
-                if ((cube.cubeColor == EColor.B && curColor == EColor.W) || (cube.cubeColor == EColor.W && curColor == EColor.B))
-                {
-                    // 异色
-                    force = new Vector2(0f, other.transform.position.y - transform.position.y);
-                }
-                else
-                {
-                    // 同色
-                    force = new Vector2(0f, transform.position.y - other.transform.position.y);
-                }
-
-               force.Normalize();
-               
-                force *= 800;
-
-                rig.velocity = new Vector2(rig.velocity.x, 0f);
-
-                rig.AddForce(force);
-            }
+            _CurInCube = cube;
+            HanderACube(cube);
         }
         else if (other.CompareTag("dangerous"))
         {
@@ -323,7 +401,47 @@ public class Player : MonoBehaviour {
         else if (other.CompareTag("trigger"))
         {
             ITrigger tri = other.GetComponent<ITrigger>();
-            tri.OnTri(); 
+            tri.OnTri();
+        }
+        else if (other.CompareTag("change_dir"))
+        {
+            StartCoroutine(CoChangeDir());
+        }
+        else if (other.CompareTag("change_dir_add_force"))
+        {
+            ChangeDirAtOnce();
+            Vector2 forceBubble = new Vector2(0f, -1 * gh.GravityDir * 1200f);
+            rig.velocity = new Vector2(rig.velocity.x, 0f);
+            rig.AddForce(forceBubble);
+        }
+        else if (other.CompareTag("add_force"))
+        {
+            Vector2 forceBubble = new Vector2(0f, -1 * gh.GravityDir * 2400f);
+            rig.velocity = new Vector2(rig.velocity.x, 0f);
+            rig.AddForce(forceBubble);
+        }
+    }
+
+    /// <summary>
+    /// 改变横轴方向
+    /// </summary>
+    /// <returns></returns>
+    IEnumerator CoChangeDir() 
+    {
+        ChangeDirAtOnce();
+        yield return 0;
+    }
+
+    void ChangeDirAtOnce() 
+    {
+        speedX *= -1;
+        if (speedX < 0)
+        {
+            transform.localEulerAngles = new Vector3(0f, 180f, 0f);
+        }
+        else
+        {
+            transform.localEulerAngles = new Vector3(0f, 0f, 0f);
         }
     }
 
@@ -334,8 +452,29 @@ public class Player : MonoBehaviour {
         DestroyObject(gobjHeart);
         GameObject gobjEff = Tools.LoadResourcesGameObject("Prefabs/eff_get_heart");
         gobjEff.transform.position = gobjHeart.transform.position;
-        yield return new WaitForSeconds(0.15f);
-        DestroyObject(gobjEff);
+        GobjLife gl = gobjEff.AddComponent<GobjLife>();
+        gl.lifeTime = 0.15f;
+        if (GameManager._CurHearts == 9 && heartid == 3)
+        {
+            gameView.SaveRecord();
+
+            // 集齐12颗心
+            AudioManager._Instance.StopSound("bgm");
+            _State = EState.Idle;
+            gameView.cameraControll.StopFollow();
+            iTween.ShakePosition(gameView.cameraControll.gameObject, new Vector3(0.3f, 0.3f, 0f), 2.5f);
+            yield return new WaitForSeconds(2.5f);
+            TweenFOV tf = gameView.cameraControll.gameObject.AddComponent<TweenFOV>();
+            tf.from = 9f;
+            tf.to = 0.1f;
+            tf.duration = 0.5f;
+            tf.camera2d = true;
+            tf.Play();
+            yield return new WaitForSeconds(0.5f);
+            Application.LoadLevel("level_end");
+            
+        }
+        yield return 0;
     }
 
     /// <summary>
@@ -371,6 +510,11 @@ public class Player : MonoBehaviour {
         {
             _InBubble = false;
         }
+        else if (other.CompareTag("forceplatform"))
+        {
+            // 离开一个方块
+            _CurInCube = null;
+        }
     }
 
     void KillPlayer()
@@ -397,7 +541,7 @@ public class Player : MonoBehaviour {
         _State = EState.Dead;
         gameView.cameraControll.StopFollow();
 
-        AudioManager._Instance.PauseSound("bgm");
+        //AudioManager._Instance.PauseSound("bgm");
 
         // 死亡动画
         iTween.ShakePosition(gameObject, new Vector3(0.1f, 0.1f, 0f), 0.4f);
@@ -446,7 +590,7 @@ public class Player : MonoBehaviour {
 
         _State = EState.ReadyToGo;
 
-        AudioManager._Instance.ContineSound("bgm");
+        //AudioManager._Instance.ContineSound("bgm");
 
         yield return 0;
     }

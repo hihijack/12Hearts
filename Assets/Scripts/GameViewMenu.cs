@@ -39,7 +39,7 @@ public class GameViewMenu : MonoBehaviour {
 	void Update () {
         if (Input.GetKeyDown(KeyCode.A))
         {
-            PlayerPrefs.DeleteAll();
+            //PlayerPrefs.DeleteAll();
         }
 	}
 
@@ -116,15 +116,18 @@ public class GameViewMenu : MonoBehaviour {
 
                 // 开启下一关
                 int nextLevelId = maxLevelId + 1;
-                GameObject gobjLevelItemNext = Tools.GetGameObjectInChildByPathSimple(uiMap, "levels/item_level_" + nextLevelId);
-                DataCache dcNext = gobjLevelItemNext.GetComponent<DataCache>();
-                UIItemLevel uilNext = dcNext.data as UIItemLevel;
+                if (nextLevelId <= GameManager.maxLevelCount)
+                {
+                    GameObject gobjLevelItemNext = Tools.GetGameObjectInChildByPathSimple(uiMap, "levels/item_level_" + nextLevelId);
+                    DataCache dcNext = gobjLevelItemNext.GetComponent<DataCache>();
+                    UIItemLevel uilNext = dcNext.data as UIItemLevel;
 
-                UISprite iconNext = Tools.GetComponentInChildByPath<UISprite>(gobjLevelItemNext, "icon");
-                iconNext.color = Color.yellow;
-                UILabel txtHeartsNext = Tools.GetComponentInChildByPath<UILabel>(gobjLevelItemNext, "txt_heart_nums");
-                txtHeartsNext.text = 0 + "/" + uilNext.levelData.hearts;
-                uilNext.active = true;
+                    UISprite iconNext = Tools.GetComponentInChildByPath<UISprite>(gobjLevelItemNext, "icon");
+                    iconNext.color = Color.yellow;
+                    UILabel txtHeartsNext = Tools.GetComponentInChildByPath<UILabel>(gobjLevelItemNext, "txt_heart_nums");
+                    txtHeartsNext.text = 0 + "/" + uilNext.levelData.hearts;
+                    uilNext.active = true;
+                }
             }
             else
             {
@@ -150,6 +153,11 @@ public class GameViewMenu : MonoBehaviour {
             btnTranslate.onClick.Add(new EventDelegate(BtnClick_Translate));
 
             GameManager._MaxHearts = maxHearts;
+
+            // 选择第一关
+            LevelData ldFirst = GameResources.GetLevelData(1);
+            UILabel txtName = Tools.GetComponentInChildByPath<UILabel>(gobjMapSelect, "name");
+            txtName.text = ldFirst.name;
         }
     }
 
@@ -161,8 +169,22 @@ public class GameViewMenu : MonoBehaviour {
             curSelectLevelId = 1;
         }
         GameObject curlevelItem = Tools.GetGameObjectInChildByPathSimple(comCPU._UISecond, "levels/item_level_" + curSelectLevelId);
+
+        DataCache dc = curlevelItem.GetComponent<DataCache>();
+        UIItemLevel uil = dc.data as UIItemLevel;
+        
         gobjMapSelect.transform.parent = curlevelItem.transform;
         gobjMapSelect.transform.localPosition = Vector3.zero;
+
+        UILabel txtName = Tools.GetComponentInChildByPath<UILabel>(gobjMapSelect, "name");
+        if (uil.active)
+        {
+            txtName.text = uil.levelData.name;
+        }
+        else
+        {
+            txtName.text = "???";
+        }
     }
 
     void BtnClick_Pre()
@@ -173,8 +195,21 @@ public class GameViewMenu : MonoBehaviour {
             curSelectLevelId = GameResources.dicLevelDatas.Count;
         }
         GameObject curlevelItem = Tools.GetGameObjectInChildByPathSimple(comCPU._UISecond, "levels/item_level_" + curSelectLevelId);
+        DataCache dc = curlevelItem.GetComponent<DataCache>();
+        UIItemLevel uil = dc.data as UIItemLevel;
+
         gobjMapSelect.transform.parent = curlevelItem.transform;
         gobjMapSelect.transform.localPosition = Vector3.zero;
+        
+        UILabel txtName = Tools.GetComponentInChildByPath<UILabel>(gobjMapSelect, "name");
+        if (uil.active)
+        {
+            txtName.text = uil.levelData.name;
+        }
+        else
+        {
+            txtName.text = "???";
+        }
     }
 
     void BtnClick_Translate()
@@ -186,7 +221,7 @@ public class GameViewMenu : MonoBehaviour {
         if (uil.active)
         {
             GameManager.curLevelId = uil.levelData.id;
-            Application.LoadLevel("level_" + uil.levelData.id);
+            Application.LoadLevel("open");
         }
     }
 

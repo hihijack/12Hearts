@@ -12,12 +12,21 @@ public class LevelData
 {
     public int id;
     public int hearts;
+    public string name;
+    public string[] strOpens;
 
     public LevelData() { }
     public LevelData(JSONNode data) 
     {
         this.id = data["id"].AsInt;
         this.hearts = data["hearts"].AsInt;
+        this.name = data["name"];
+        JSONNode jdOpens = data["open"];
+        strOpens = new string[jdOpens.Count];
+        for (int i = 0; i < jdOpens.Count; i++)
+        {
+            strOpens[i] = jdOpens[i];
+        }
     }
 }
 

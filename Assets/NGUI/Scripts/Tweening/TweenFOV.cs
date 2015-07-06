@@ -15,6 +15,7 @@ public class TweenFOV : UITweener
 {
 	public float from = 45f;
 	public float to = 45f;
+    public bool camera2d = false;
 
 	Camera mCam;
 
@@ -27,7 +28,32 @@ public class TweenFOV : UITweener
 	/// Tween's current value.
 	/// </summary>
 
-	public float value { get { return cachedCamera.fieldOfView; } set { cachedCamera.fieldOfView = value; } }
+	public float value { 
+        get
+        {
+            if (camera2d)
+            {
+                return cachedCamera.orthographicSize;
+            }
+            else
+            {
+                return cachedCamera.fieldOfView;
+            }
+           
+        } 
+        set 
+        {
+            if (camera2d)
+            {
+                cachedCamera.orthographicSize = value;
+            }
+            else
+            {
+                cachedCamera.fieldOfView = value; 
+            }
+           
+        } 
+    }
 
 	/// <summary>
 	/// Tween the value.
